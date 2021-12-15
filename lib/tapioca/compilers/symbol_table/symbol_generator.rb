@@ -696,7 +696,7 @@ module Tapioca
         end
         def mixed_in_by_gem?(mod, mixin_type, mixin_locations)
           locations = mixin_locations.dig(mixin_type, mod)
-          return true unless locations
+          return false unless locations
           locations.any? { |location| gem.contains_path?(location) }
         end
 
