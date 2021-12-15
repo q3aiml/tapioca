@@ -372,6 +372,8 @@ class Tapioca::Compilers::SymbolTableCompilerSpec < Minitest::HooksSpec
           end
         end
 
+        Range.prepend(Foo::Bar)
+
         class Hash
           extend Foo::Bar
 
@@ -415,6 +417,10 @@ class Tapioca::Compilers::SymbolTableCompilerSpec < Minitest::HooksSpec
 
         class Module
           def bar; end
+        end
+
+        class Range
+          include ::Foo::Bar
         end
 
         class String
