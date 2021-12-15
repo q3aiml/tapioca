@@ -7,6 +7,7 @@ module Tapioca
       extend T::Sig
 
       @mixin_map = {}.compare_by_identity
+      @constant_map = {}.compare_by_identity
 
       class Type < T::Enum
         enums do
@@ -29,6 +30,13 @@ module Tapioca
         locations.map!(&:absolute_path).uniq!
         locs = mixin_locations_for(constant)
         locs.fetch(mixin_type).store(mod, T.cast(locations, T::Array[String]))
+        constants = constants_with_mixin(mod)
+        constants << [constant, mixin_type]
+      end
+
+      sig { params(mixin: Module).returns(T::Array[[Module, Type]]) }
+      def self.constants_with_mixin(mixin)
+        @constant_map[mixin] ||= []
       end
 
       sig { params(constant: Module).returns(T::Hash[Type, T::Hash[Module, T::Array[String]]]) }
