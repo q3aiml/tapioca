@@ -48,9 +48,13 @@ module Tapioca
 
         private
 
-        sig { params(name: T.nilable(String)).void }
-        def add_to_symbol_queue(name)
-          @symbol_queue << name unless name.nil? || symbols.include?(name) || symbol_ignored?(name)
+        sig { params(name: T.nilable(String), skip_ignore: T::Boolean).void }
+        def add_to_symbol_queue(name, skip_ignore: false)
+          return unless name
+          return if symbols.include?(name)
+          return if !skip_ignore && symbol_ignored?(name)
+
+          @symbol_queue << name
         end
 
         sig { returns(T::Set[String]) }
@@ -171,7 +175,7 @@ module Tapioca
 
         sig { params(tree: RBI::Tree, name: String, constant: Module).void }
         def compile_module(tree, name, constant)
-          return unless defined_in_gem?(constant, strict: false)
+          defined_in_gem = defined_in_gem?(constant, strict: false)
 
           comments = documentation_comments(name)
           scope =
@@ -182,62 +186,48 @@ module Tapioca
               RBI::Module.new(name, comments: comments)
             end
 
-          compile_body(scope, name, constant)
+          compile_body(scope, name, constant, defined_in_gem)
 
-          return if symbol_ignored?(name) && scope.empty?
+          return if !defined_in_gem && scope.empty?
 
           tree << scope
 
-          # Handle all the mixin locations for this module
-          compile_mixees(tree, constant)
-
-          compile_subconstants(tree, name, constant)
-        end
-
-        sig { params(tree: RBI::Tree, mod: Module).void }
-        def compile_mixees(tree, mod)
-          constants_mixed_into = Tapioca::Trackers::Mixin.constants_with_mixin(mod)
-
-          constants_mixed_into.each do |mixee, mixin_type|
-            mixee_name = name_of(mixee)
-            next unless mixee_name
-            next if seen?(mixee_name)
-            next if @symbol_queue.include?(mixee_name)
-
-            # Define mixee
-            scope = if Class === mixee
-              RBI::Class.new(mixee_name)
-            else
-              RBI::Module.new(mixee_name)
-            end
-
-            # Mixin mod with mixin type
-            mod_name = qualified_name_of(mod)
-
-            case mixin_type
-            # TODO: Sorbet currently does not handle prepend
-            # properly for method resolution, so we generate an
-            # include statement instead
-            when Trackers::Mixin::Type::Include, Trackers::Mixin::Type::Prepend
-              scope << RBI::Include.new(T.must(mod_name))
-            when Trackers::Mixin::Type::Extend
-              scope << RBI::Extend.new(T.must(mod_name))
-            end
-
-            tree << scope unless scope.empty?
+          # Add all constants that have mixed in this module to the symbol queue.
+          #
+          # This enables us to be aware of mixins that are happening dynamically,
+          # via `Foo.include(Bar)` where `Foo` might be a constant defined by another
+          # gem. Normally `Foo` wouldn't be in the symbol table if that is the only
+          # reference to `Foo` from the current gem.
+          #
+          # By explicitly adding such constants to the symbol queue, we can queue them
+          # to be generated later on in the run.
+          #
+          # If such constants were also reopened inside the gem, then they would already
+          # be in the symbol queue anyway, so trying to add them again would be a no-op.
+          Tapioca::Trackers::Mixin.constants_with_mixin(constant).each do |mixee, _|
+            # We need the `skip_ignore` flag, since we want to explicitly queue this
+            # symbol name even if this is an ignored symbol. We know we want to generate
+            # a definition for this symbol regardless.
+            add_to_symbol_queue(name_of(mixee), skip_ignore: true)
           end
+
+          compile_subconstants(tree, name, constant) if defined_in_gem
         end
 
-        sig { params(tree: RBI::Tree, name: String, constant: Module).void }
-        def compile_body(tree, name, constant)
-          # Compiling type variables must happen first to populate generic names
-          compile_type_variables(tree, constant)
-          compile_methods(tree, name, constant)
-          compile_module_helpers(tree, constant)
-          compile_mixins(tree, constant)
-          compile_props(tree, constant)
-          compile_enums(tree, constant)
-          compile_dynamic_mixins(tree, constant)
+        sig { params(tree: RBI::Tree, name: String, constant: Module, defined_in_gem: T::Boolean).void }
+        def compile_body(tree, name, constant, defined_in_gem)
+          if defined_in_gem
+            # Compiling type variables must happen first to populate generic names
+            compile_type_variables(tree, constant)
+            compile_methods(tree, name, constant)
+            compile_module_helpers(tree, constant)
+            compile_mixins(tree, constant)
+            compile_props(tree, constant)
+            compile_enums(tree, constant)
+            compile_dynamic_mixins(tree, constant)
+          else
+            compile_mixins(tree, constant)
+          end
         end
 
         sig { params(tree: RBI::Tree, constant: Module).void }
@@ -402,6 +392,16 @@ module Tapioca
 
         sig { params(tree: RBI::Tree, constant: Module).void }
         def compile_mixins(tree, constant)
+          compile_mixins_of(tree, constant)
+
+          # Compile mixins on singleton class of constant, if they exist
+          scope = RBI::SingletonClass.new
+          compile_mixins_of(scope, singleton_class_of(constant))
+          tree << scope unless scope.empty?
+        end
+
+        sig { params(tree: RBI::Tree, constant: Module).void }
+        def compile_mixins_of(tree, constant)
           singleton_class = singleton_class_of(constant)
 
           interesting_ancestors = interesting_ancestors_of(constant)
