@@ -187,7 +187,45 @@ module Tapioca
           return if symbol_ignored?(name) && scope.empty?
 
           tree << scope
+
+          # Handle all the mixin locations for this module
+          compile_mixees(tree, constant)
+
           compile_subconstants(tree, name, constant)
+        end
+
+        sig { params(tree: RBI::Tree, mod: Module).void }
+        def compile_mixees(tree, mod)
+          constants_mixed_into = Tapioca::Trackers::Mixin.constants_with_mixin(mod)
+
+          constants_mixed_into.each do |mixee, mixin_type|
+            mixee_name = name_of(mixee)
+            next unless mixee_name
+            next if seen?(mixee_name)
+            next if @symbol_queue.include?(mixee_name)
+
+            # Define mixee
+            scope = if Class === mixee
+              RBI::Class.new(mixee_name)
+            else
+              RBI::Module.new(mixee_name)
+            end
+
+            # Mixin mod with mixin type
+            mod_name = qualified_name_of(mod)
+
+            case mixin_type
+            # TODO: Sorbet currently does not handle prepend
+            # properly for method resolution, so we generate an
+            # include statement instead
+            when Trackers::Mixin::Type::Include, Trackers::Mixin::Type::Prepend
+              scope << RBI::Include.new(T.must(mod_name))
+            when Trackers::Mixin::Type::Extend
+              scope << RBI::Extend.new(T.must(mod_name))
+            end
+
+            tree << scope unless scope.empty?
+          end
         end
 
         sig { params(tree: RBI::Tree, name: String, constant: Module).void }
