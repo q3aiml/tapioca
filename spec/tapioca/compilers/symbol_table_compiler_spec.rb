@@ -256,24 +256,17 @@ class Tapioca::Compilers::SymbolTableCompilerSpec < Minitest::HooksSpec
         end
       RUBY
 
-      basic_object_output = template(<<~RBI)
+      output = template(<<~RBI)
         class BasicObject
           def hello; end
         end
-      RBI
 
-      object_output = template(<<~RBI)
         class Object < ::BasicObject
-          include ::Kernel
-
           def hello; end
         end
       RBI
 
-      compiled = compile
-
-      assert_includes(compiled, basic_object_output)
-      assert_includes(compiled, object_output)
+      assert_includes(compile, output)
     end
 
     it("compiles mixins in the correct order") do
@@ -396,7 +389,6 @@ class Tapioca::Compilers::SymbolTableCompilerSpec < Minitest::HooksSpec
       output = template(<<~RBI)
         class Array
           include ::Foo::Bar
-          include ::Enumerable
 
           def foo_int; end
         end
@@ -409,7 +401,6 @@ class Tapioca::Compilers::SymbolTableCompilerSpec < Minitest::HooksSpec
         module Foo::Bar; end
 
         class Hash
-          include ::Enumerable
           extend ::Foo::Bar
 
           def to_bar; end
@@ -424,7 +415,6 @@ class Tapioca::Compilers::SymbolTableCompilerSpec < Minitest::HooksSpec
         end
 
         class String
-          include ::Comparable
           include ::Foo::Bar
 
           def to_foo(base = T.unsafe(nil)); end
@@ -2134,7 +2124,9 @@ class Tapioca::Compilers::SymbolTableCompilerSpec < Minitest::HooksSpec
 
       output = template(<<~RBI)
         class Foo
-          extend ::Foo::Bar
+          class << self
+            include ::Foo::Bar
+          end
         end
 
         module Foo::Bar
