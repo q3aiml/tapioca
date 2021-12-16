@@ -153,7 +153,7 @@ module Tapioca
       locations = Kernel.caller_locations
       return "" unless locations
 
-      required_location = locations.find { |loc| loc.label == "<top (required)>" }
+      required_location = locations.find { |loc| ["<top (required)>", "<main>"].include?(loc.label) }
       return "" unless required_location
 
       required_location.absolute_path || ""
