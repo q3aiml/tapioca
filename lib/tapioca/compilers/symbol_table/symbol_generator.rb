@@ -204,8 +204,8 @@ module Tapioca
           #
           # If such constants were also reopened inside the gem, then they would already
           # be in the symbol queue anyway, so trying to add them again would be a no-op.
-          Tapioca::Trackers::Mixin.constants_with_mixin(constant).each do |mixee, _, mixin_locations|
-            next unless mixed_in_by_gem?(mixin_locations)
+          Tapioca::Trackers::Mixin.constants_with_mixin(constant).each do |mixee, _, mixin_location|
+            next unless mixed_in_by_gem?(mixin_location)
 
             # We need the `skip_ignore` flag, since we want to explicitly queue this
             # symbol name even if this is an ignored symbol. We know we want to generate
@@ -427,7 +427,7 @@ module Tapioca
             tree: RBI::Tree,
             mods: T::Array[Module],
             mixin_type: Trackers::Mixin::Type,
-            mixin_locations: T::Hash[Trackers::Mixin::Type, T::Hash[Module, T::Array[String]]]
+            mixin_locations: T::Hash[Trackers::Mixin::Type, T::Hash[Module, String]]
           ).void
         end
         def add_mixins(tree, mods, mixin_type, mixin_locations)
@@ -689,14 +689,10 @@ module Tapioca
           end
         end
 
-        sig do
-          params(
-            mixin_locations: T.nilable(T::Array[String])
-          ).returns(T::Boolean)
-        end
-        def mixed_in_by_gem?(mixin_locations)
-          return false unless mixin_locations
-          mixin_locations.any? { |location| gem.contains_path?(location) }
+        sig { params(mixin_location: T.nilable(String)).returns(T::Boolean) }
+        def mixed_in_by_gem?(mixin_location)
+          return false unless mixin_location
+          gem.contains_path?(mixin_location)
         end
 
         sig { params(constant: Module).returns(T::Array[String]) }

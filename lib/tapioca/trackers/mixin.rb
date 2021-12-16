@@ -21,28 +21,25 @@ module Tapioca
         params(
           constant: Module,
           mod: Module,
-          mixin_type: Type,
-          locations: T.nilable(T::Array[Thread::Backtrace::Location])
+          mixin_type: Type
         ).void
       end
-      def self.register(constant, mod, mixin_type, locations)
-        locations ||= []
-        locations.map!(&:absolute_path).uniq!
-        locations = T.cast(locations, T::Array[String])
+      def self.register(constant, mod, mixin_type)
+        location = Tapioca::Reflection.required_from_location
 
         locs = mixin_locations_for(constant)
-        locs.fetch(mixin_type).store(mod, locations)
+        locs.fetch(mixin_type).store(mod, location)
 
         constants = constants_with_mixin(mod)
-        constants << [constant, mixin_type, locations]
+        constants << [constant, mixin_type, location]
       end
 
-      sig { params(mixin: Module).returns(T::Array[[Module, Type, T::Array[String]]]) }
+      sig { params(mixin: Module).returns(T::Array[[Module, Type, String]]) }
       def self.constants_with_mixin(mixin)
         @constant_map[mixin] ||= []
       end
 
-      sig { params(constant: Module).returns(T::Hash[Type, T::Hash[Module, T::Array[String]]]) }
+      sig { params(constant: Module).returns(T::Hash[Type, T::Hash[Module, String]]) }
       def self.mixin_locations_for(constant)
         @mixin_map[constant] ||= {
           Type::Prepend => {}.compare_by_identity,
@@ -57,32 +54,17 @@ end
 class Module
   prepend(Module.new do
     def prepend_features(constant)
-      Tapioca::Trackers::Mixin.register(
-        constant,
-        self,
-        Tapioca::Trackers::Mixin::Type::Prepend,
-        caller_locations
-      )
+      Tapioca::Trackers::Mixin.register(constant, self, Tapioca::Trackers::Mixin::Type::Prepend)
       super
     end
 
     def append_features(constant)
-      Tapioca::Trackers::Mixin.register(
-        constant,
-        self,
-        Tapioca::Trackers::Mixin::Type::Include,
-        caller_locations
-      )
+      Tapioca::Trackers::Mixin.register(constant, self, Tapioca::Trackers::Mixin::Type::Include)
       super
     end
 
     def extend_object(obj)
-      Tapioca::Trackers::Mixin.register(
-        obj,
-        self,
-        Tapioca::Trackers::Mixin::Type::Extend,
-        caller_locations
-      ) if Module === obj
+      Tapioca::Trackers::Mixin.register(obj, self, Tapioca::Trackers::Mixin::Type::Extend) if Module === obj
       super
     end
   end)

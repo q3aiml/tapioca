@@ -147,5 +147,16 @@ module Tapioca
 
       T.unsafe(result)
     end
+
+    sig { returns(String) }
+    def required_from_location
+      locations = Kernel.caller_locations
+      return "" unless locations
+
+      required_location = locations.find { |loc| loc.label == "<top (required)>" }
+      return "" unless required_location
+
+      required_location.absolute_path || ""
+    end
   end
 end
