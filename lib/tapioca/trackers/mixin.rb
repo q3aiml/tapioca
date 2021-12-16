@@ -28,13 +28,16 @@ module Tapioca
       def self.register(constant, mod, mixin_type, locations)
         locations ||= []
         locations.map!(&:absolute_path).uniq!
+        locations = T.cast(locations, T::Array[String])
+
         locs = mixin_locations_for(constant)
-        locs.fetch(mixin_type).store(mod, T.cast(locations, T::Array[String]))
+        locs.fetch(mixin_type).store(mod, locations)
+
         constants = constants_with_mixin(mod)
-        constants << [constant, mixin_type]
+        constants << [constant, mixin_type, locations]
       end
 
-      sig { params(mixin: Module).returns(T::Array[[Module, Type]]) }
+      sig { params(mixin: Module).returns(T::Array[[Module, Type, T::Array[String]]]) }
       def self.constants_with_mixin(mixin)
         @constant_map[mixin] ||= []
       end
