@@ -8,6 +8,7 @@ module Tapioca
 
       @mixin_map = {}.compare_by_identity
       @constant_map = {}.compare_by_identity
+      @enabled = true
 
       class Type < T::Enum
         enums do
@@ -15,6 +16,14 @@ module Tapioca
           Include = new
           Extend = new
         end
+      end
+
+      def self.with_disabled_registration(&block)
+        @enabled = false
+
+        block.call
+      ensure
+        @enabled = true
       end
 
       sig do
@@ -25,6 +34,8 @@ module Tapioca
         ).void
       end
       def self.register(constant, mod, mixin_type)
+        return unless @enabled
+
         location = Tapioca::Reflection.required_from_location
 
         locs = mixin_locations_for(constant)
