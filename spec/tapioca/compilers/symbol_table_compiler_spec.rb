@@ -388,7 +388,6 @@ class Tapioca::Compilers::SymbolTableCompilerSpec < Minitest::HooksSpec
       RUBY
 
       add_ruby_file("ext.rb", <<~RUBY)
-
         class String
           include Foo::Bar
 
@@ -416,6 +415,8 @@ class Tapioca::Compilers::SymbolTableCompilerSpec < Minitest::HooksSpec
         class Module
           def bar; end
         end
+
+        Class.singleton_class.prepend(Foo::Bar)
       RUBY
 
       output = template(<<~RBI)
@@ -423,6 +424,12 @@ class Tapioca::Compilers::SymbolTableCompilerSpec < Minitest::HooksSpec
           include ::Foo::Bar
 
           def foo_int; end
+        end
+
+        class Class < ::Module
+          class << self
+            include ::Foo::Bar
+          end
         end
 
         class Foo

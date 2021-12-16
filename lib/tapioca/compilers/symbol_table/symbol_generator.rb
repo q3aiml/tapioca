@@ -207,10 +207,13 @@ module Tapioca
           Tapioca::Trackers::Mixin.constants_with_mixin(constant).each do |mixee, _, mixin_location|
             next unless mixed_in_by_gem?(mixin_location)
 
+            symbol = name_of(mixee)
+            symbol = mixee.to_s.match("#<Class:(.+)>")&.captures&.first if !symbol && mixee.singleton_class?
+
             # We need the `skip_ignore` flag, since we want to explicitly queue this
             # symbol name even if this is an ignored symbol. We know we want to generate
             # a definition for this symbol regardless.
-            add_to_symbol_queue(name_of(mixee), skip_ignore: true)
+            add_to_symbol_queue(symbol, skip_ignore: true)
           end
 
           compile_subconstants(tree, name, constant) if defined_in_gem
