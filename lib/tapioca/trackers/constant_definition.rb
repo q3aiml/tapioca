@@ -12,29 +12,26 @@ module Tapioca
     module ConstantDefinition
       extend Reflection
 
-      @class_files = {}
+      @class_files = {}.compare_by_identity
 
       # Immediately activated upon load. Observes class/module definition.
       TracePoint.trace(:class) do |tp|
-        unless tp.self.singleton_class?
-          key = name_of(tp.self)
-          file = tp.path
-          if file == "(eval)"
-            file = T.must(caller_locations)
-              .drop_while { |loc| loc.path == "(eval)" }
-              .first&.path
-          end
-          @class_files[key] ||= Set.new
-          @class_files[key] << file
-        end
+        next if tp.self.singleton_class?
+
+        key = tp.self
+        @class_files[key] ||= Set.new
+        @class_files[key] << required_from_location
       end
 
       # Returns the files in which this class or module was opened. Doesn't know
       # about situations where the class was opened prior to +require+ing,
       # or where metaprogramming was used via +eval+, etc.
       def self.files_for(klass)
-        name = String === klass ? klass : name_of(klass)
-        files = @class_files[name]
+        if String === klass
+          klass = constantize(klass)
+        end
+
+        files = @class_files[klass]
         files || Set.new
       end
     end
