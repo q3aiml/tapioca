@@ -15,12 +15,22 @@ module Tapioca
       @class_files = {}.compare_by_identity
 
       # Immediately activated upon load. Observes class/module definition.
-      TracePoint.trace(:class) do |tp|
-        next if tp.self.singleton_class?
+      TracePoint.trace(:class, :c_return) do |tp|
+        case tp.event
+        when :class
+          next if tp.self.singleton_class?
 
-        key = tp.self
-        @class_files[key] ||= Set.new
-        @class_files[key] << required_from_location
+          key = tp.self
+          @class_files[key] ||= Set.new
+          @class_files[key] << required_from_location
+        when :c_return
+          next unless tp.method_id == :new
+          next unless Module === tp.return_value
+
+          key = tp.return_value
+          @class_files[key] ||= Set.new
+          @class_files[key] << required_from_location
+        end
       end
 
       # Returns the files in which this class or module was opened. Doesn't know
