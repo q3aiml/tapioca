@@ -692,10 +692,13 @@ module Tapioca
           end
         end
 
+        APP_CONFIG_FOLDER = T.let(Bundler.default_gemfile.join("../config").expand_path.to_s, String)
+
         sig { params(mixin_location: T.nilable(String)).returns(T::Boolean) }
         def mixed_in_by_gem?(mixin_location)
           return false unless mixin_location
-          gem.contains_path?(mixin_location)
+
+          gem.contains_path?(mixin_location) || mixin_location.start_with?(APP_CONFIG_FOLDER)
         end
 
         sig { params(constant: Module).returns(T::Array[String]) }
