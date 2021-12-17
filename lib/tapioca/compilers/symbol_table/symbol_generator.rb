@@ -528,7 +528,7 @@ module Tapioca
         end
         def compile_method(tree, symbol_name, constant, method, visibility = RBI::Public.new)
           return unless method
-          return unless method.owner == constant
+          return unless method_defined_by_constant?(method, constant)
           return if symbol_ignored?(symbol_name) && !method_in_gem?(method)
 
           signature = signature_of(method)
@@ -670,6 +670,37 @@ module Tapioca
         def valid_method_name?(name)
           return true if SPECIAL_METHOD_NAMES.include?(name)
           !!name.match(/^[[:word:]]+[?!=]?$/)
+        end
+
+        sig { params(method: UnboundMethod, constant: Module).returns(T::Boolean) }
+        def method_defined_by_constant?(method, constant)
+          # The idea here is to check that the method owner is the constant in question.
+          #
+          # However, this could give us false results if a module is prepended to the
+          # constant. In that case, the owner of the method will point to the prepended
+          # module. That will mean, the simple owner check will mislead us and will result
+          # in us acting like the method is not defined by the constant, at all.
+          #
+          # A better check is to keep walking up the ancestor chain of the method's super
+          # methods and keep checking those against the original constant too. If any of
+          # those checks match, then we can be sure that the constant does indeed declare
+          # the method.
+
+          # Widen the type of `method` to be nilable
+          method = T.let(method, T.nilable(UnboundMethod))
+
+          loop do
+            # At the top of the loop, we are guaranteed to have a non-nilable method
+            method = T.must(method)
+
+            return true if method.owner == constant
+
+            method = method.super_method
+
+            break unless method
+          end
+
+          false
         end
 
         sig { params(method: UnboundMethod).returns(T::Boolean) }
