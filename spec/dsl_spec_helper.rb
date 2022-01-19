@@ -23,7 +23,7 @@ class DslSpec < Minitest::Spec
   sig { void }
   def teardown
     super
-    T.unsafe(self).subject.errors.clear
+    # T.unsafe(self).subject.errors.clear
   end
 
   subject do
@@ -32,7 +32,7 @@ class DslSpec < Minitest::Spec
     generator_for_names(target_class_name)
   end
 
-  sig { params(names: String).returns(Tapioca::Compilers::Dsl::Base) }
+  sig { params(names: String).returns(T.class_of(Tapioca::Compilers::Dsl::Base)) }
   def generator_for_names(*names)
     raise "name is required" if names.empty?
 
@@ -43,7 +43,7 @@ class DslSpec < Minitest::Spec
       requested_generators: classes
     )
 
-    T.must(compiler.generators.find { |generator| generator.class.name == names.first })
+    T.must(compiler.generators.find { |generator| generator.name == names.first })
   end
 
   sig { returns(Class) }
@@ -107,14 +107,20 @@ class DslSpec < Minitest::Spec
 
     constant = Object.const_get(constant_name)
 
-    T.unsafe(self).subject.decorate(file.root, constant)
+    compiler = Tapioca::Compilers::DslCompiler.new(
+      requested_constants: [],
+      requested_generators: [T.unsafe(self).subject]
+    )
+
+    T.unsafe(self).subject.new(compiler, file.root, constant).decorate
 
     file.transformed_string
   end
 
   sig { returns(T::Array[String]) }
   def generated_errors
-    T.unsafe(self).subject.errors
+    []
+    # T.unsafe(self).subject.errors
   end
 
   sig { void }

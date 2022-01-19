@@ -5,7 +5,7 @@ require "spec_helper"
 
 class Tapioca::Compilers::Dsl::ActiveRecordColumnsSpec < DslSpec
   describe("Tapioca::Compilers::Dsl::ActiveRecordColumns") do
-    describe("#initialize") do
+    describe(".gather_constants") do
       after(:each) do
         T.unsafe(self).assert_no_generated_errors
       end
