@@ -68,12 +68,18 @@ module Tapioca
       class ActionControllerHelpers < Base
         extend T::Sig
 
-        sig do
-          override
-            .params(root: RBI::Tree, constant: T.class_of(::ActionController::Base))
-            .void
+        sig { override.returns(T.all(Module, T.class_of(::ActionController::Base))) }
+        def constant
+          super
         end
-        def decorate(root, constant)
+
+        sig { override.returns(T::Enumerable[Module]) }
+        def self.gather_constants
+          descendants_of(::ActionController::Base).reject(&:abstract?).select(&:name)
+        end
+
+        sig { override.void }
+        def decorate
           helpers_module = constant._helpers
           proxied_helper_methods = constant._helper_methods.map(&:to_s).map(&:to_sym)
 
@@ -121,11 +127,6 @@ module Tapioca
               proxy.create_include(helper_methods_name)
             end
           end
-        end
-
-        sig { override.returns(T::Enumerable[Module]) }
-        def gather_constants
-          descendants_of(::ActionController::Base).reject(&:abstract?).select(&:name)
         end
 
         private

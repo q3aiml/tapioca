@@ -40,6 +40,12 @@ module Tapioca
       class AASM < Tapioca::Compilers::Dsl::Base
         extend T::Sig
 
+        sig { override.returns(T.all(Class, ::AASM::ClassMethods)) }
+        def constant
+          super
+        end
+
+
         # Taken directly from the AASM::Core::Event class, here:
         # https://github.com/aasm/aasm/blob/0e03746/lib/aasm/core/event.rb#L21-L29
         EVENT_CALLBACKS =
@@ -49,8 +55,13 @@ module Tapioca
             T::Array[String]
           )
 
-        sig { override.params(root: RBI::Tree, constant: T.all(::AASM::ClassMethods, Class)).void }
-        def decorate(root, constant)
+        sig { override.returns(T::Enumerable[Module]) }
+        def self.gather_constants
+          T.cast(ObjectSpace.each_object(::AASM::ClassMethods), T::Enumerable[Module])
+        end
+
+        sig { override.void }
+        def decorate
           aasm = constant.aasm
           return if !aasm || aasm.states.empty?
 
@@ -110,11 +121,6 @@ module Tapioca
               end
             end
           end
-        end
-
-        sig { override.returns(T::Enumerable[Module]) }
-        def gather_constants
-          T.cast(ObjectSpace.each_object(::AASM::ClassMethods), T::Enumerable[Module])
         end
       end
     end

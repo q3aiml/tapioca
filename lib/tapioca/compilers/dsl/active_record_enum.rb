@@ -58,15 +58,25 @@ module Tapioca
       class ActiveRecordEnum < Base
         extend T::Sig
 
-        sig { override.params(root: RBI::Tree, constant: T.class_of(::ActiveRecord::Base)).void }
-        def decorate(root, constant)
+        sig { override.returns(T.all(Module, T.class_of(::ActiveRecord::Base))) }
+        def constant
+          super
+        end
+
+        sig { override.returns(T::Enumerable[Module]) }
+        def self.gather_constants
+          descendants_of(::ActiveRecord::Base)
+        end
+
+        sig { override.void }
+        def decorate
           return if constant.defined_enums.empty?
 
           root.create_path(constant) do |model|
             module_name = "EnumMethodsModule"
 
             model.create_module(module_name) do |mod|
-              generate_instance_methods(constant, mod)
+              generate_instance_methods(mod)
             end
 
             model.create_include(module_name)
@@ -76,11 +86,6 @@ module Tapioca
               model.create_method(name.pluralize, class_method: true, return_type: type)
             end
           end
-        end
-
-        sig { override.returns(T::Enumerable[Module]) }
-        def gather_constants
-          descendants_of(::ActiveRecord::Base)
         end
 
         private
@@ -97,8 +102,8 @@ module Tapioca
           "T::Hash[T.any(String, Symbol), #{value_type}]"
         end
 
-        sig { params(constant: T.class_of(::ActiveRecord::Base), klass: RBI::Scope).void }
-        def generate_instance_methods(constant, klass)
+        sig { params(klass: RBI::Scope).void }
+        def generate_instance_methods(klass)
           methods = constant.send(:_enum_methods_module).instance_methods
 
           methods.each do |method|

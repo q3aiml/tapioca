@@ -46,9 +46,25 @@ module Tapioca
           Regexp
         )
 
-        sig { override.params(root: RBI::Tree, constant: T.class_of(::Rails::Generators::Base)).void }
-        def decorate(root, constant)
-          base_class = base_class_for(constant)
+        sig { override.returns(T.all(Module, T.class_of(::Rails::Generators::Base))) }
+        def constant
+          super
+        end
+
+        sig { override.returns(T::Enumerable[Module]) }
+        def self.gather_constants
+          all_classes.select do |const|
+            name = qualified_name_of(const)
+
+            name &&
+              !name.match?(BUILT_IN_MATCHER) &&
+              ::Rails::Generators::Base > const
+          end
+        end
+
+        sig { override.void }
+        def decorate
+          base_class = base_class_for_constant
           arguments = constant.arguments - base_class.arguments
           class_options = constant.class_options.reject do |name, option|
             base_class.class_options[name] == option
@@ -59,17 +75,6 @@ module Tapioca
           root.create_path(constant) do |klass|
             arguments.each { |argument| generate_methods_for_argument(klass, argument) }
             class_options.each { |_name, option| generate_methods_for_argument(klass, option) }
-          end
-        end
-
-        sig { override.returns(T::Enumerable[Module]) }
-        def gather_constants
-          all_classes.select do |const|
-            name = qualified_name_of(const)
-
-            name &&
-              !name.match?(BUILT_IN_MATCHER) &&
-              ::Rails::Generators::Base > const
           end
         end
 
@@ -84,11 +89,8 @@ module Tapioca
           )
         end
 
-        sig do
-          params(constant: T.class_of(::Rails::Generators::Base))
-            .returns(T.class_of(::Rails::Generators::Base))
-        end
-        def base_class_for(constant)
+        sig { returns(T.class_of(::Rails::Generators::Base)) }
+        def base_class_for_constant
           ancestor = inherited_ancestors_of(constant).find do |klass|
             qualified_name_of(klass)&.match?(BUILT_IN_MATCHER)
           end

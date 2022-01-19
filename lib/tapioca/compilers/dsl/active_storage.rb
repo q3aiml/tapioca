@@ -46,11 +46,20 @@ module Tapioca
       class ActiveStorage < Base
         extend T::Sig
 
-        sig do
-          override.params(root: RBI::Tree,
-            constant: T.all(Module, ::ActiveStorage::Reflection::ActiveRecordExtensions::ClassMethods)).void
+        sig { override.returns(T.all(Module, ::ActiveStorage::Reflection::ActiveRecordExtensions::ClassMethods)) }
+        def constant
+          super
         end
-        def decorate(root, constant)
+
+        sig { override.returns(T::Enumerable[Module]) }
+        def self.gather_constants
+          descendants_of(::ActiveRecord::Base)
+            .reject(&:abstract_class?)
+            .grep(::ActiveStorage::Reflection::ActiveRecordExtensions::ClassMethods)
+        end
+
+        sig { override.void }
+        def decorate
           return if constant.reflect_on_all_attachments.empty?
 
           root.create_path(constant) do |scope|
@@ -68,13 +77,6 @@ module Tapioca
               )
             end
           end
-        end
-
-        sig { override.returns(T::Enumerable[Module]) }
-        def gather_constants
-          descendants_of(::ActiveRecord::Base)
-            .reject(&:abstract_class?)
-            .grep(::ActiveStorage::Reflection::ActiveRecordExtensions::ClassMethods)
         end
 
         private

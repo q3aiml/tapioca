@@ -60,12 +60,22 @@ module Tapioca
       class ActiveModelSecurePassword < Base
         extend T::Sig
 
-        sig do
-          override
-            .params(root: RBI::Tree, constant: T.all(Class, ::ActiveModel::SecurePassword::ClassMethods))
-            .void
+        sig { override.returns(T.all(Class, ::ActiveModel::SecurePassword::ClassMethods)) }
+        def constant
+          super
         end
-        def decorate(root, constant)
+
+        sig { override.returns(T::Enumerable[Module]) }
+        def self.gather_constants
+          # This selects all classes that are `ActiveModel::SecurePassword::ClassMethods === klass`.
+          # In other words, we select all classes that have `ActiveModel::SecurePassword::ClassMethods`
+          # as an ancestor of its singleton class, i.e. all classes that have extended the
+          # `ActiveModel::SecurePassword::ClassMethods` module.
+          all_classes.grep(::ActiveModel::SecurePassword::ClassMethods)
+        end
+
+        sig { override.void }
+        def decorate
           instance_methods_modules = if constant < ActiveModel::SecurePassword::InstanceMethodsOnActivation
             # pre Rails 6.0, this used to be a single static module
             [ActiveModel::SecurePassword::InstanceMethodsOnActivation]
@@ -85,15 +95,6 @@ module Tapioca
               create_method_from_def(klass, constant.instance_method(method))
             end
           end
-        end
-
-        sig { override.returns(T::Enumerable[Module]) }
-        def gather_constants
-          # This selects all classes that are `ActiveModel::SecurePassword::ClassMethods === klass`.
-          # In other words, we select all classes that have `ActiveModel::SecurePassword::ClassMethods`
-          # as an ancestor of its singleton class, i.e. all classes that have extended the
-          # `ActiveModel::SecurePassword::ClassMethods` module.
-          all_classes.grep(::ActiveModel::SecurePassword::ClassMethods)
         end
       end
     end

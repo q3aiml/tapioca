@@ -51,21 +51,21 @@ module Tapioca
       class MixedInClassAttributes < Base
         extend T::Sig
 
-        sig { override.params(root: RBI::Tree, constant: Module).void }
-        def decorate(root, constant)
+        sig { override.returns(T::Enumerable[Module]) }
+        def self.gather_constants
+          # Select all non-anonymous modules that have overridden Module.included
+          all_modules.select do |mod|
+            !mod.is_a?(Class) && name_of(mod) && Tapioca::Reflection.method_of(mod, :included).owner != Module
+          end
+        end
+
+        sig { override.void }
+        def decorate
           mixin_compiler = DynamicMixinCompiler.new(constant)
           return if mixin_compiler.empty_attributes?
 
           root.create_path(constant) do |mod|
             mixin_compiler.compile_class_attributes(mod)
-          end
-        end
-
-        sig { override.returns(T::Enumerable[Module]) }
-        def gather_constants
-          # Select all non-anonymous modules that have overridden Module.included
-          all_modules.select do |mod|
-            !mod.is_a?(Class) && name_of(mod) && Tapioca::Reflection.method_of(mod, :included).owner != Module
           end
         end
       end

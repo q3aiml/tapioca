@@ -123,8 +123,18 @@ module Tapioca
           T.any(::ActiveRecord::Reflection::ThroughReflection, ::ActiveRecord::Reflection::AssociationReflection)
         end
 
-        sig { override.params(root: RBI::Tree, constant: T.class_of(ActiveRecord::Base)).void }
-        def decorate(root, constant)
+        sig { override.returns(T.all(Module, T.class_of(::ActiveRecord::Base))) }
+        def constant
+          super
+        end
+
+        sig { override.returns(T::Enumerable[Module]) }
+        def self.gather_constants
+          descendants_of(::ActiveRecord::Base).reject(&:abstract_class?)
+        end
+
+        sig { override.void }
+        def decorate
           return if constant.reflections.empty?
 
           root.create_path(constant) do |model|
@@ -135,11 +145,6 @@ module Tapioca
 
             model.create_include(AssociationMethodsModuleName)
           end
-        end
-
-        sig { override.returns(T::Enumerable[Module]) }
-        def gather_constants
-          descendants_of(::ActiveRecord::Base).reject(&:abstract_class?)
         end
 
         private

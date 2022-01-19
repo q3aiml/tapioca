@@ -90,15 +90,20 @@ module Tapioca
       class ActiveRecordTypedStore < Base
         extend T::Sig
 
-        sig do
-          override
-            .params(
-              root: RBI::Tree,
-              constant: T.class_of(::ActiveRecord::Base)
-            )
-            .void
+        sig { override.returns(T.all(Module, T.class_of(::ActiveRecord::Base))) }
+        def constant
+          super
         end
-        def decorate(root, constant)
+
+        sig { override.returns(T::Enumerable[Module]) }
+        def self.gather_constants
+          descendants_of(::ActiveRecord::Base).select do |klass|
+            klass.include?(ActiveRecord::TypedStore::Behavior)
+          end
+        end
+
+        sig { override.void }
+        def decorate
           stores = constant.typed_stores
           return if stores.values.flat_map(&:accessors).empty?
 
@@ -114,13 +119,6 @@ module Tapioca
                 model.create_include("StoreAccessors")
               end
             end
-          end
-        end
-
-        sig { override.returns(T::Enumerable[Module]) }
-        def gather_constants
-          descendants_of(::ActiveRecord::Base).select do |klass|
-            klass.include?(ActiveRecord::TypedStore::Behavior)
           end
         end
 

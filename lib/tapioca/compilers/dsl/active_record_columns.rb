@@ -100,15 +100,25 @@ module Tapioca
         extend T::Sig
         include Helper::ActiveRecordConstants
 
-        sig { override.params(root: RBI::Tree, constant: T.class_of(ActiveRecord::Base)).void }
-        def decorate(root, constant)
+        sig { override.returns(T.all(Module, T.class_of(::ActiveRecord::Base))) }
+        def constant
+          super
+        end
+
+        sig { override.returns(T::Enumerable[Module]) }
+        def self.gather_constants
+          descendants_of(::ActiveRecord::Base).reject(&:abstract_class?)
+        end
+
+        sig { override.void }
+        def decorate
           return unless constant.table_exists?
 
           root.create_path(constant) do |model|
             model.create_module(AttributeMethodsModuleName) do |mod|
               constant.columns_hash.each_key do |column_name|
                 column_name = column_name.to_s
-                add_methods_for_attribute(mod, constant, column_name)
+                add_methods_for_attribute(mod, column_name)
               end
 
               constant.attribute_aliases.each do |attribute_name, column_name|
@@ -118,17 +128,12 @@ module Tapioca
                 old_method_names = constant.attribute_method_matchers.map { |m| m.method_name(column_name) }
                 methods_to_add = new_method_names - old_method_names
 
-                add_methods_for_attribute(mod, constant, column_name, attribute_name, methods_to_add)
+                add_methods_for_attribute(mod, column_name, attribute_name, methods_to_add)
               end
             end
 
             model.create_include(AttributeMethodsModuleName)
           end
-        end
-
-        sig { override.returns(T::Enumerable[Module]) }
-        def gather_constants
-          descendants_of(::ActiveRecord::Base).reject(&:abstract_class?)
         end
 
         private
@@ -153,13 +158,12 @@ module Tapioca
         sig do
           params(
             klass: RBI::Scope,
-            constant: T.class_of(ActiveRecord::Base),
             column_name: String,
             attribute_name: String,
             methods_to_add: T.nilable(T::Array[String])
           ).void
         end
-        def add_methods_for_attribute(klass, constant, column_name, attribute_name = column_name, methods_to_add = nil)
+        def add_methods_for_attribute(klass, column_name, attribute_name = column_name, methods_to_add = nil)
           getter_type, setter_type = ActiveRecordColumnTypeHelper.new(constant).type_for(column_name)
 
           # Added by ActiveRecord::AttributeMethods::Read

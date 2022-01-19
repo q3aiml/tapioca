@@ -61,8 +61,18 @@ module Tapioca
       class ActiveResource < Base
         extend T::Sig
 
-        sig { override.params(root: RBI::Tree, constant: T.class_of(::ActiveResource::Base)).void }
-        def decorate(root, constant)
+        sig { override.returns(T.all(Module, T.class_of(::ActiveResource::Base))) }
+        def constant
+          super
+        end
+
+        sig { override.returns(T::Enumerable[Module]) }
+        def self.gather_constants
+          descendants_of(::ActiveResource::Base)
+        end
+
+        sig { override.void }
+        def decorate
           return if constant.schema.blank?
 
           root.create_path(constant) do |resource|
@@ -70,11 +80,6 @@ module Tapioca
               create_schema_methods(resource, attribute, type)
             end
           end
-        end
-
-        sig { override.returns(T::Enumerable[Module]) }
-        def gather_constants
-          descendants_of(::ActiveResource::Base)
         end
 
         private

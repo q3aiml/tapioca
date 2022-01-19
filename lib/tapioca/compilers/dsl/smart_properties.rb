@@ -63,12 +63,24 @@ module Tapioca
       class SmartProperties < Base
         extend T::Sig
 
-        sig { override.params(root: RBI::Tree, constant: T.class_of(::SmartProperties)).void }
-        def decorate(root, constant)
-          properties = T.let(
-            T.unsafe(constant).properties,
-            ::SmartProperties::PropertyCollection
-          )
+        sig { override.returns(T.all(::SmartProperties::ClassMethods, Module)) }
+        def constant
+          super
+        end
+
+        sig { override.returns(T::Enumerable[Module]) }
+        def self.gather_constants
+          all_modules.select do |c|
+            name_of(c) &&
+              c != ::SmartProperties::Validations::Ancestor &&
+              c < ::SmartProperties && ::SmartProperties::ClassMethods === c
+          end
+        end
+
+        sig { override.void }
+        def decorate
+          properties = T.let(constant.properties, ::SmartProperties::PropertyCollection)
+
           return if properties.keys.empty?
 
           root.create_path(constant) do |k|
@@ -80,15 +92,6 @@ module Tapioca
             end
 
             k.create_include(smart_properties_methods_name)
-          end
-        end
-
-        sig { override.returns(T::Enumerable[Module]) }
-        def gather_constants
-          all_modules.select do |c|
-            name_of(c) &&
-              c != ::SmartProperties::Validations::Ancestor &&
-              c < ::SmartProperties && ::SmartProperties::ClassMethods === c
           end
         end
 

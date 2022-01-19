@@ -46,14 +46,19 @@ module Tapioca
         extend T::Sig
         include Helper::ActiveRecordConstants
 
-        sig do
-          override.params(
-            root: RBI::Tree,
-            constant: T.class_of(::ActiveRecord::Base)
-          ).void
+        sig { override.returns(T.all(Module, T.class_of(::ActiveRecord::Base))) }
+        def constant
+          super
         end
-        def decorate(root, constant)
-          method_names = scope_method_names(constant)
+
+        sig { override.returns(T::Enumerable[Module]) }
+        def self.gather_constants
+          descendants_of(::ActiveRecord::Base).reject(&:abstract_class?)
+        end
+
+        sig { override.void }
+        def decorate
+          method_names = scope_method_names
 
           return if method_names.empty?
 
@@ -83,23 +88,21 @@ module Tapioca
           end
         end
 
-        sig { override.returns(T::Enumerable[Module]) }
-        def gather_constants
-          descendants_of(::ActiveRecord::Base).reject(&:abstract_class?)
-        end
-
         private
 
-        sig { params(constant: T.class_of(::ActiveRecord::Base)).returns(T::Array[Symbol]) }
-        def scope_method_names(constant)
+        sig { returns(T::Array[Symbol]) }
+        def scope_method_names
           scope_methods = T.let([], T::Array[Symbol])
 
           # Keep gathering scope methods until we hit "ActiveRecord::Base"
           until constant == ActiveRecord::Base
             scope_methods.concat(constant.send(:generated_relation_methods).instance_methods(false))
 
+            superclass = superclass_of(constant)
+            break unless superclass
+
             # we are guaranteed to have a superclass that is of type "ActiveRecord::Base"
-            constant = T.cast(constant.superclass, T.class_of(ActiveRecord::Base))
+            constant = T.cast(superclass, T.class_of(ActiveRecord::Base))
           end
 
           scope_methods

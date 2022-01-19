@@ -46,8 +46,23 @@ module Tapioca
       class ActiveSupportConcern < Base
         extend T::Sig
 
-        sig { override.params(root: RBI::Tree, constant: Module).void }
-        def decorate(root, constant)
+        sig { override.returns(T::Enumerable[Module]) }
+        def self.gather_constants
+          # Find all Modules that are:
+          all_modules.select do |mod|
+            # named (i.e. not anonymous)
+            name_of(mod) &&
+              # not singleton classes
+              !mod.singleton_class? &&
+              # extend ActiveSupport::Concern, and
+              mod.singleton_class < ActiveSupport::Concern &&
+              # have dependencies (i.e. include another concern)
+              !dependencies_of(mod).empty?
+          end
+        end
+
+        sig { override.void }
+        def decorate
           dependencies = linearized_dependencies_of(constant)
 
           mixed_in_class_methods = dependencies
@@ -66,26 +81,16 @@ module Tapioca
           end
         end
 
-        sig { override.returns(T::Enumerable[Module]) }
-        def gather_constants
-          # Find all Modules that are:
-          all_modules.select do |mod|
-            # named (i.e. not anonymous)
-            name_of(mod) &&
-              # not singleton classes
-              !mod.singleton_class? &&
-              # extend ActiveSupport::Concern, and
-              mod.singleton_class < ActiveSupport::Concern &&
-              # have dependencies (i.e. include another concern)
-              !dependencies_of(mod).empty?
-          end
-        end
-
         private
 
         sig { params(concern: Module).returns(T::Array[Module]) }
-        def dependencies_of(concern)
+        def self.dependencies_of(concern)
           concern.instance_variable_get(:@_dependencies)
+        end
+
+        sig { params(concern: Module).returns(T::Array[Module]) }
+        def dependencies_of(concern)
+          self.class.dependencies_of(concern)
         end
 
         sig { params(concern: Module).returns(T::Array[Module]) }

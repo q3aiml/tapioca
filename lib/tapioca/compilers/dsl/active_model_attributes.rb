@@ -39,8 +39,18 @@ module Tapioca
       class ActiveModelAttributes < Base
         extend T::Sig
 
-        sig { override.params(root: RBI::Tree, constant: T.all(Class, ::ActiveModel::Attributes::ClassMethods)).void }
-        def decorate(root, constant)
+        sig { override.returns(T.all(Class, ::ActiveModel::Attributes::ClassMethods)) }
+        def constant
+          super
+        end
+
+        sig { override.returns(T::Enumerable[Module]) }
+        def self.gather_constants
+          all_classes.grep(::ActiveModel::Attributes::ClassMethods)
+        end
+
+        sig { override.void }
+        def decorate
           attribute_methods = attribute_methods_for(constant)
           return if attribute_methods.empty?
 
@@ -49,11 +59,6 @@ module Tapioca
               generate_method(klass, method, attribute_type)
             end
           end
-        end
-
-        sig { override.returns(T::Enumerable[Module]) }
-        def gather_constants
-          all_classes.grep(::ActiveModel::Attributes::ClassMethods)
         end
 
         private

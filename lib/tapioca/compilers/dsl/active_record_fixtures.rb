@@ -38,8 +38,18 @@ module Tapioca
       class ActiveRecordFixtures < Base
         extend T::Sig
 
-        sig { override.params(root: RBI::Tree, constant: T.class_of(ActiveSupport::TestCase)).void }
-        def decorate(root, constant)
+        sig { override.returns(T.all(Module, T.class_of(ActiveSupport::TestCase))) }
+        def constant
+          super
+        end
+
+        sig { override.returns(T::Enumerable[Module]) }
+        def self.gather_constants
+          [ActiveSupport::TestCase]
+        end
+
+        sig { override.void }
+        def decorate
           method_names = fixture_loader.ancestors # get all ancestors from class that includes AR fixtures
             .drop(1) # drop the anonymous class itself from the array
             .reject(&:name) # only collect anonymous ancestors because fixture methods are always on an anonymous module
@@ -54,11 +64,6 @@ module Tapioca
               create_fixture_method(mod, name.to_s)
             end
           end
-        end
-
-        sig { override.returns(T::Enumerable[Module]) }
-        def gather_constants
-          [ActiveSupport::TestCase]
         end
 
         private
