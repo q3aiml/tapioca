@@ -78,11 +78,9 @@ module Tapioca
 
       sig { params(generator_name: String).returns(T::Boolean) }
       def generator_enabled?(generator_name)
-        generator = Dsl::Base.resolve(generator_name)
-
-        return false unless generator
-
-        @generators.any?(generator)
+        @generators.any? do |generator|
+          ["Tapioca::Compilers::Dsl::#{generator_name}", generator_name].any?(generator.name)
+        end
       end
 
       private

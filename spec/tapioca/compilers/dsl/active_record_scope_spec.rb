@@ -37,10 +37,8 @@ class Tapioca::Compilers::Dsl::ActiveRecordScopeSpec < DslSpec
       end
 
       describe("with relations enabled") do
-        subject do
-          T.bind(self, DslSpec)
-          require "tapioca/compilers/dsl/active_record_relations"
-          generator_for_names(target_class_name, "Tapioca::Compilers::Dsl::ActiveRecordRelations")
+        before do
+          activate_compiler("tapioca/compilers/dsl/active_record_relations")
         end
 
         it("generates an empty RBI file for ActiveRecord classes with no scope field") do
@@ -344,17 +342,13 @@ class Tapioca::Compilers::Dsl::ActiveRecordScopeSpec < DslSpec
     end
 
     describe("#decorate_active_storage") do
-      subject do
-        T.bind(self, DslSpec)
-        require "tapioca/compilers/dsl/active_record_relations"
-        generator_for_names(target_class_name, "Tapioca::Compilers::Dsl::ActiveRecordRelations")
-      end
-
       after(:each) do
         T.unsafe(self).assert_no_generated_errors
       end
 
-      before(:each) do
+      before do
+        # activate_compiler("tapioca/compilers/dsl/active_record_relations")
+
         require "active_record"
         require "active_storage/attached"
         require "active_storage/reflection"

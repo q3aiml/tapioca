@@ -17,58 +17,82 @@ class DslSpec < Minitest::Spec
   sig { void }
   def after_setup
     # Require the file that the target class should be loaded from
-    require(T.unsafe(self).target_class_file)
+    require @@compiler_require_file
   end
 
-  sig { void }
-  def teardown
-    super
-    # T.unsafe(self).subject.errors.clear
+  # sig { void }
+  # def teardown
+  #   super
+  #   # T.unsafe(self).subject.errors.clear
+  # end
+
+  @@compiler_hydrator = T.let(nil, T.nilable(T.proc.returns(T.class_of(Tapioca::Compilers::Dsl::Base))))
+  @@compiler_require_file = T.let(nil, T.nilable(String))
+  @@compiler = T.let(nil, T.nilable(T.class_of(Tapioca::Compilers::Dsl::Base)))
+
+  sig { params(blk: T.proc.returns(T.class_of(Tapioca::Compilers::Dsl::Base))).void }
+  def self.compiler_under_test(&blk)
+    @@compiler_hydrator = blk
   end
 
-  subject do
-    T.bind(self, DslSpec)
-    # Get the class under test and initialize a new instance of it as the "subject"
-    generator_for_names(target_class_name)
+  sig { params(path: String).void }
+  def self.compiler_require(path)
+    @@compiler_require_file = path
   end
 
-  sig { params(names: String).returns(T.class_of(Tapioca::Compilers::Dsl::Base)) }
-  def generator_for_names(*names)
-    raise "name is required" if names.empty?
-
-    classes = names.map { |class_name| Object.const_get(class_name) }
-
-    compiler = Tapioca::Compilers::DslCompiler.new(
-      requested_constants: [],
-      requested_generators: classes
-    )
-
-    T.must(compiler.generators.find { |generator| generator.name == names.first })
+  sig {params(require_file: String).void }
+  def activate_compiler(require_file)
+    @@compiler = nil
+    Kernel.require(require_file)
   end
+
+  sig { returns(T.class_of(Tapioca::Compilers::Dsl::Base)) }
+  def compiler
+    @@compiler ||= @@compiler_hydrator&.call or raise "no compiler defined"
+  end
+
+  # subject do
+  #   T.bind(self, DslSpec)
+  #   # Get the class under test and initialize a new instance of it as the "subject"
+  #   generator_for_names(target_class_name)
+  # end
+
+  # sig { params(names: String).returns(T.class_of(Tapioca::Compilers::Dsl::Base)) }
+  # def generator_for_names(*names)
+  #   raise "name is required" if names.empty?
+
+  #   classes = names.map { |class_name| Object.const_get(class_name) }
+
+  #   compiler = Tapioca::Compilers::DslCompiler.new(
+  #     requested_constants: [],
+  #     requested_generators: classes
+  #   )
+
+  #   T.must(compiler.generators.find { |generator| generator.name == names.first })
+  # end
 
   sig { returns(Class) }
-  def spec_test_class
+  def self.spec_test_class
     # Find the spec test class
-    klass = T.unsafe(self).class
+    klass = T.let(self, Class)
+
     # It should be the one that directly inherits from DslSpec
-    klass = klass.superclass while klass.superclass != DslSpec
+    while (superclass = klass.superclass) && superclass != DslSpec
+      klass = superclass
+    end
+
     klass
   end
 
   sig { returns(String) }
-  def target_class_name
+  def self.target_class_name
     # Get the name of the class under test from the name of the
     # test class
     T.must(spec_test_class.name).gsub(/Spec$/, "")
   end
 
-  sig { returns(String) }
-  def target_class_file
-    underscore(target_class_name)
-  end
-
   sig { params(class_name: String).returns(String) }
-  def underscore(class_name)
+  def self.underscore(class_name)
     return class_name unless /[A-Z-]|::/.match?(class_name)
 
     word = class_name.to_s.gsub("::", "/")
@@ -77,6 +101,20 @@ class DslSpec < Minitest::Spec
     word.tr!("-", "_")
     word.downcase!
     word
+  end
+
+  sig { returns(String) }
+  def self.target_class_file
+    self.underscore(target_class_name)
+  end
+
+  sig {void}
+  def before_setup
+    self.class.compiler_under_test do
+      Object.const_get(self.class.target_class_name)
+    end
+
+    self.class.compiler_require(self.class.target_class_file)
   end
 
   sig { params(str: String, indent: Integer).returns(String) }
@@ -89,7 +127,7 @@ class DslSpec < Minitest::Spec
 
   sig { returns(T::Array[String]) }
   def gathered_constants
-    T.unsafe(self).subject.processable_constants.map(&:name).sort
+    compiler.processable_constants.map { |constant| T.must(constant.name) }.sort
   end
 
   sig do
@@ -100,19 +138,21 @@ class DslSpec < Minitest::Spec
   def rbi_for(constant_name)
     # Make sure this is a constant that we can handle.
     assert_includes(gathered_constants, constant_name.to_s, <<~MSG)
-      `#{constant_name}` is not processable by the `#{target_class_name}` generator.
+      `#{constant_name}` is not processable by the `#{compiler.name}` generator.
     MSG
 
     file = RBI::File.new(strictness: "strong")
 
     constant = Object.const_get(constant_name)
 
-    compiler = Tapioca::Compilers::DslCompiler.new(
+    generators = Tapioca::Reflection.descendants_of(Tapioca::Compilers::Dsl::Base)
+
+    dsl = Tapioca::Compilers::DslCompiler.new(
       requested_constants: [],
-      requested_generators: [T.unsafe(self).subject]
+      requested_generators: generators
     )
 
-    T.unsafe(self).subject.new(compiler, file.root, constant).decorate
+    compiler.new(dsl, file.root, constant).decorate
 
     file.transformed_string
   end
