@@ -621,18 +621,14 @@ module Tapioca
 
           @project.write("lib/generators/generator_that_includes_bar_module.rb", <<~RB)
             class GeneratorThatIncludesBarModuleInPost < Tapioca::Compilers::Dsl::Base
-              extend T::Sig
-
-              sig { override.params(root: RBI::Tree, constant: T.class_of(Post)).void }
-              def decorate(root, constant)
+              def decorate
                 root.create_path(constant) do |klass|
                   klass.create_module("GeneratedBar")
                   klass.create_include("GeneratedBar")
                 end
               end
 
-              sig { override.returns(T::Enumerable[Module]) }
-              def gather_constants
+              def self.gather_constants
                 [Post]
               end
             end
@@ -640,18 +636,14 @@ module Tapioca
 
           @project.write("lib/generators/foo/generator_that_includes_foo_module.rb", <<~RB)
             class GeneratorThatIncludesFooModuleInPost < Tapioca::Compilers::Dsl::Base
-              extend T::Sig
-
-              sig { override.params(root: RBI::Tree, constant: T.class_of(Post)).void }
-              def decorate(root, constant)
+              def decorate
                 root.create_path(constant) do |klass|
                   klass.create_module("GeneratedFoo")
                   klass.create_include("GeneratedFoo")
                 end
               end
 
-              sig { override.returns(T::Enumerable[Module]) }
-              def gather_constants
+              def self.gather_constants
                 [Post]
               end
             end
@@ -724,14 +716,10 @@ module Tapioca
           @project.write("lib/generators/foo/generator.rb", <<~RB)
             module Foo
               class Generator < Tapioca::Compilers::Dsl::Base
-                extend T::Sig
-
-                sig { override.params(root: RBI::Tree, constant: T.class_of(::ActionController::Base)).void }
-                def decorate(root, constant)
+                def decorate
                 end
 
-                sig { override.returns(T::Enumerable[Module]) }
-                def gather_constants
+                def self.gather_constants
                   []
                 end
               end
