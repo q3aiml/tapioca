@@ -63,10 +63,7 @@ module Tapioca
       class SmartProperties < Base
         extend T::Sig
 
-        sig { override.returns(T.all(::SmartProperties::ClassMethods, Module)) }
-        def constant
-          super
-        end
+        ConstantType = type_member(fixed: T.all(Module, ::SmartProperties::ClassMethods))
 
         sig { override.returns(T::Enumerable[Module]) }
         def self.gather_constants

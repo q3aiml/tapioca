@@ -58,10 +58,7 @@ module Tapioca
       class ActiveRecordEnum < Base
         extend T::Sig
 
-        sig { override.returns(T.all(Module, T.class_of(::ActiveRecord::Base))) }
-        def constant
-          super
-        end
+        ConstantType = type_member(fixed: T.class_of(::ActiveRecord::Base))
 
         sig { override.returns(T::Enumerable[Module]) }
         def self.gather_constants

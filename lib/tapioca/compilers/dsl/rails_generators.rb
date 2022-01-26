@@ -46,10 +46,7 @@ module Tapioca
           Regexp
         )
 
-        sig { override.returns(T.all(Module, T.class_of(::Rails::Generators::Base))) }
-        def constant
-          super
-        end
+        ConstantType = type_member(fixed: T.class_of(::Rails::Generators::Base))
 
         sig { override.returns(T::Enumerable[Module]) }
         def self.gather_constants

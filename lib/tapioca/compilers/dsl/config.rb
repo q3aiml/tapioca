@@ -47,6 +47,8 @@ module Tapioca
       class Config < Base
         extend T::Sig
 
+        ConstantType = type_member(fixed: Module)
+
         CONFIG_OPTIONS_SUFFIX = "ConfigOptions"
 
         sig { override.returns(T::Enumerable[Module]) }

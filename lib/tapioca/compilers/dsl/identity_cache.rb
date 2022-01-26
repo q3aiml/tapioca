@@ -62,6 +62,8 @@ module Tapioca
       class IdentityCache < Base
         extend T::Sig
 
+        ConstantType = type_member(fixed: Module)
+
         COLLECTION_TYPE = T.let(
           ->(type) { "T::Array[::#{type}]" },
           T.proc.params(type: T.any(Module, String)).returns(String)

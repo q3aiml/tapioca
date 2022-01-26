@@ -13,17 +13,22 @@ module Tapioca
       class Base
         extend T::Sig
         extend T::Helpers
+        extend T::Generic
 
         include Reflection
         extend Reflection
 
         abstract!
 
+        ConstantType = type_member(upper: Module)
+
         sig { returns(T::Array[String]) }
         attr_reader :errors
 
-        sig { returns(Module) }
-        attr_reader :constant
+        sig { returns(ConstantType) }
+        def constant
+          T.cast(@constant, ConstantType)
+        end
 
         sig { returns(RBI::Tree) }
         attr_reader :root

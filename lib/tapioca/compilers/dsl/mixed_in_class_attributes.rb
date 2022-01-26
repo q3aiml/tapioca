@@ -51,6 +51,8 @@ module Tapioca
       class MixedInClassAttributes < Base
         extend T::Sig
 
+        ConstantType = type_member(fixed: Module)
+
         sig { override.returns(T::Enumerable[Module]) }
         def self.gather_constants
           # Select all non-anonymous modules that have overridden Module.included

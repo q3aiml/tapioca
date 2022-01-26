@@ -118,10 +118,7 @@ module Tapioca
       class StateMachines < Base
         extend T::Sig
 
-        sig { override.returns(T.all(Module, ::StateMachines::ClassMethods)) }
-        def constant
-          super
-        end
+        ConstantType = type_member(fixed: T.all(Class, ::StateMachines::ClassMethods))
 
         sig { override.returns(T::Enumerable[Module]) }
         def self.gather_constants

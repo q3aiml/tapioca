@@ -46,6 +46,8 @@ module Tapioca
       class ActiveSupportConcern < Base
         extend T::Sig
 
+        ConstantType = type_member(fixed: Module)
+
         sig { override.returns(T::Enumerable[Module]) }
         def self.gather_constants
           # Find all Modules that are:

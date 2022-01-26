@@ -61,14 +61,16 @@ module Tapioca
       # end
       # ~~~
       class Protobuf < Base
+        extend T::Sig
+
+        ConstantType = type_member(fixed: Module)
+
         class Field < T::Struct
           prop :name, String
           prop :type, String
           prop :init_type, String
           prop :default, String
         end
-
-        extend T::Sig
 
         sig { override.returns(T::Enumerable[Module]) }
         def self.gather_constants

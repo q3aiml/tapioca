@@ -38,10 +38,7 @@ module Tapioca
       class ActiveRecordFixtures < Base
         extend T::Sig
 
-        sig { override.returns(T.all(Module, T.class_of(ActiveSupport::TestCase))) }
-        def constant
-          super
-        end
+        ConstantType = type_member(fixed: T.class_of(ActiveSupport::TestCase))
 
         sig { override.returns(T::Enumerable[Module]) }
         def self.gather_constants

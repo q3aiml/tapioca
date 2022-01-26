@@ -60,10 +60,7 @@ module Tapioca
       class ActiveModelSecurePassword < Base
         extend T::Sig
 
-        sig { override.returns(T.all(Class, ::ActiveModel::SecurePassword::ClassMethods)) }
-        def constant
-          super
-        end
+        ConstantType = type_member(fixed: T.all(Class, ::ActiveModel::SecurePassword::ClassMethods))
 
         sig { override.returns(T::Enumerable[Module]) }
         def self.gather_constants

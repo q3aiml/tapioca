@@ -87,6 +87,8 @@ module Tapioca
       class UrlHelpers < Base
         extend T::Sig
 
+        ConstantType = type_member(fixed: Module)
+
         NON_DISCOVERABLE_INCLUDERS = T.let([
           ActionDispatch::IntegrationTest,
           ActionView::Helpers,

@@ -12,6 +12,10 @@ require "tapioca/compilers/dsl/helper/active_record_constants"
 module Tapioca
   module Compilers
     module Dsl
+      ReflectionType = T.type_alias do
+        T.any(::ActiveRecord::Reflection::ThroughReflection, ::ActiveRecord::Reflection::AssociationReflection)
+      end
+
       # `Tapioca::Compilers::Dsl::ActiveRecordAssociations` refines RBI files for subclasses of
       # [`ActiveRecord::Base`](https://api.rubyonrails.org/classes/ActiveRecord/Base.html).
       # This generator is only responsible for defining the methods that would be created for the associations that
@@ -119,14 +123,7 @@ module Tapioca
           end
         end
 
-        ReflectionType = T.type_alias do
-          T.any(::ActiveRecord::Reflection::ThroughReflection, ::ActiveRecord::Reflection::AssociationReflection)
-        end
-
-        sig { override.returns(T.all(Module, T.class_of(::ActiveRecord::Base))) }
-        def constant
-          super
-        end
+        ConstantType = type_member(fixed: T.class_of(::ActiveRecord::Base))
 
         sig { override.returns(T::Enumerable[Module]) }
         def self.gather_constants

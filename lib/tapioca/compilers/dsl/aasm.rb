@@ -40,11 +40,7 @@ module Tapioca
       class AASM < Tapioca::Compilers::Dsl::Base
         extend T::Sig
 
-        sig { override.returns(T.all(Class, ::AASM::ClassMethods)) }
-        def constant
-          super
-        end
-
+        ConstantType = type_member(fixed: T.all(Class, ::AASM::ClassMethods))
 
         # Taken directly from the AASM::Core::Event class, here:
         # https://github.com/aasm/aasm/blob/0e03746/lib/aasm/core/event.rb#L21-L29

@@ -36,10 +36,7 @@ module Tapioca
       class ActionMailer < Base
         extend T::Sig
 
-        sig { override.returns(T.class_of(::ActionMailer::Base)) }
-        def constant
-          super
-        end
+        ConstantType = type_member(fixed: T.class_of(::ActionMailer::Base))
 
         sig { override.returns(T::Enumerable[Module]) }
         def self.gather_constants
