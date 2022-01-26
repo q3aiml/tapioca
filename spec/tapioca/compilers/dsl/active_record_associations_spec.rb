@@ -55,7 +55,8 @@ class Tapioca::Compilers::Dsl::ActiveRecordAssociationsSpec < DslSpec
 
       describe("with relations enabled") do
         before do
-          activate_compiler("tapioca/compilers/dsl/active_record_relations")
+          require "tapioca/compilers/dsl/active_record_relations"
+          activate_other_plugins(Tapioca::Compilers::Dsl::ActiveRecordRelations)
         end
 
         describe("without errors") do
@@ -1435,10 +1436,9 @@ class Tapioca::Compilers::Dsl::ActiveRecordAssociationsSpec < DslSpec
     end
 
     describe("#decorate_active_storage") do
-      before(:each) do
-        T.bind(self, Tapioca::Compilers::Dsl::ActiveRecordAssociationsSpec)
-
-        activate_compiler("tapioca/compilers/dsl/active_record_relations")
+      before do
+        require "tapioca/compilers/dsl/active_record_relations"
+        activate_other_plugins(Tapioca::Compilers::Dsl::ActiveRecordRelations)
 
         add_ruby_file("application.rb", <<~RUBY)
           ENV["DATABASE_URL"] = "sqlite3::memory:"
