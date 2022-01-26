@@ -7,8 +7,11 @@ module Tapioca
   module Helpers
     module Test
       module Template
-        include Kernel
         extend T::Sig
+        extend T::Helpers
+
+        requires_ancestor { Kernel }
+
         ERB_SUPPORTS_KVARGS = T.let(
           ::ERB.instance_method(:initialize).parameters.assoc(:key), T.nilable([Symbol, Symbol])
         )

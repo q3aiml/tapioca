@@ -3,73 +3,18 @@
 
 require "sorbet-runtime"
 require "minitest/spec"
-require "tapioca/helpers/test/content"
-require "tapioca/helpers/test/template"
-require "tapioca/helpers/test/isolation"
+require "tapioca/helpers/test/dsl_plugin"
 
 class DslSpec < Minitest::Spec
   extend T::Sig
   include Kernel
-  include Tapioca::Helpers::Test::Content
-  include Tapioca::Helpers::Test::Template
-  include Tapioca::Helpers::Test::Isolation
+  include Tapioca::Helpers::Test::DslPlugin
 
-  sig { void }
-  def after_setup
+  before do
     # Require the file that the target class should be loaded from
-    require @@compiler_require_file
+    require self.class.target_class_file
+    use_plugin(Object.const_get(self.class.target_class_name))
   end
-
-  # sig { void }
-  # def teardown
-  #   super
-  #   # T.unsafe(self).subject.errors.clear
-  # end
-
-  @@compiler_hydrator = T.let(nil, T.nilable(T.proc.returns(T.class_of(Tapioca::Compilers::Dsl::Base))))
-  @@compiler_require_file = T.let(nil, T.nilable(String))
-  @@compiler = T.let(nil, T.nilable(T.class_of(Tapioca::Compilers::Dsl::Base)))
-
-  sig { params(blk: T.proc.returns(T.class_of(Tapioca::Compilers::Dsl::Base))).void }
-  def self.compiler_under_test(&blk)
-    @@compiler_hydrator = blk
-  end
-
-  sig { params(path: String).void }
-  def self.compiler_require(path)
-    @@compiler_require_file = path
-  end
-
-  sig {params(require_file: String).void }
-  def activate_compiler(require_file)
-    @@compiler = nil
-    Kernel.require(require_file)
-  end
-
-  sig { returns(T.class_of(Tapioca::Compilers::Dsl::Base)) }
-  def compiler
-    @@compiler ||= @@compiler_hydrator&.call or raise "no compiler defined"
-  end
-
-  # subject do
-  #   T.bind(self, DslSpec)
-  #   # Get the class under test and initialize a new instance of it as the "subject"
-  #   generator_for_names(target_class_name)
-  # end
-
-  # sig { params(names: String).returns(T.class_of(Tapioca::Compilers::Dsl::Base)) }
-  # def generator_for_names(*names)
-  #   raise "name is required" if names.empty?
-
-  #   classes = names.map { |class_name| Object.const_get(class_name) }
-
-  #   compiler = Tapioca::Compilers::DslCompiler.new(
-  #     requested_constants: [],
-  #     requested_generators: classes
-  #   )
-
-  #   T.must(compiler.generators.find { |generator| generator.name == names.first })
-  # end
 
   sig { returns(Class) }
   def self.spec_test_class
@@ -108,53 +53,12 @@ class DslSpec < Minitest::Spec
     self.underscore(target_class_name)
   end
 
-  sig {void}
-  def before_setup
-    self.class.compiler_under_test do
-      Object.const_get(self.class.target_class_name)
-    end
-
-    self.class.compiler_require(self.class.target_class_file)
-  end
-
   sig { params(str: String, indent: Integer).returns(String) }
   def indented(str, indent)
     str.lines.map! do |line|
       next line if line.chomp.empty?
       " " * indent + line
     end.join
-  end
-
-  sig { returns(T::Array[String]) }
-  def gathered_constants
-    compiler.processable_constants.map { |constant| T.must(constant.name) }.sort
-  end
-
-  sig do
-    params(
-      constant_name: T.any(Symbol, String)
-    ).returns(String)
-  end
-  def rbi_for(constant_name)
-    # Make sure this is a constant that we can handle.
-    assert_includes(gathered_constants, constant_name.to_s, <<~MSG)
-      `#{constant_name}` is not processable by the `#{compiler.name}` generator.
-    MSG
-
-    file = RBI::File.new(strictness: "strong")
-
-    constant = Object.const_get(constant_name)
-
-    generators = Tapioca::Reflection.descendants_of(Tapioca::Compilers::Dsl::Base)
-
-    dsl = Tapioca::Compilers::DslCompiler.new(
-      requested_constants: [],
-      requested_generators: generators
-    )
-
-    compiler.new(dsl, file.root, constant).decorate
-
-    file.transformed_string
   end
 
   sig { returns(T::Array[String]) }
