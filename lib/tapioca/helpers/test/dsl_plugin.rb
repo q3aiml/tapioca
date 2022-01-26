@@ -35,6 +35,11 @@ module Tapioca::Helpers::Test::DslPlugin
     context.gathered_constants
   end
 
+  sig { returns(T::Array[String]) }
+  def generated_errors
+    context.errors
+  end
+
   sig { returns(Context) }
   def context
     raise "Please call `plugin_under_test` before" unless @context
@@ -50,9 +55,13 @@ module Tapioca::Helpers::Test::DslPlugin
     sig { returns(T::Array[T.class_of(Tapioca::Compilers::Dsl::Base)]) }
     attr_reader :other_plugin_classes
 
+    sig { returns(T::Array[String]) }
+    attr_reader :errors
+
     def initialize(plugin_class)
       @plugin_class = plugin_class
       @other_plugin_classes = []
+      @errors = []
     end
 
     sig { params(plugin_classes: T::Array[T.class_of(Tapioca::Compilers::Dsl::Base)]).void }
@@ -86,6 +95,7 @@ module Tapioca::Helpers::Test::DslPlugin
       )
       plugin = plugin_class.new(dsl, file.root, constant)
       plugin.decorate
+      @errors = plugin.errors
 
       file.transformed_string
     end

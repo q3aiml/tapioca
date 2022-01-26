@@ -61,12 +61,6 @@ class DslSpec < Minitest::Spec
     end.join
   end
 
-  sig { returns(T::Array[String]) }
-  def generated_errors
-    []
-    # T.unsafe(self).subject.errors
-  end
-
   sig { void }
   def assert_no_generated_errors
     T.unsafe(self).assert_empty(generated_errors)
