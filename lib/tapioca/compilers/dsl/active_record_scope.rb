@@ -55,7 +55,7 @@ module Tapioca
 
         sig { override.void }
         def decorate
-          method_names = scope_method_names
+          method_names = self.class.scope_method_names_from_constant(constant)
 
           return if method_names.empty?
 
@@ -87,8 +87,8 @@ module Tapioca
 
         private
 
-        sig { returns(T::Array[Symbol]) }
-        def scope_method_names
+        sig { params(constant: Class).returns(T::Array[Symbol]) }
+        def self.scope_method_names_from_constant(constant)
           scope_methods = T.let([], T::Array[Symbol])
 
           # Keep gathering scope methods until we hit "ActiveRecord::Base"
