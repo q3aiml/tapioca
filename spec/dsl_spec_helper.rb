@@ -50,7 +50,7 @@ class DslSpec < Minitest::Spec
 
   sig { returns(String) }
   def self.target_class_file
-    self.underscore(target_class_name)
+    underscore(target_class_name)
   end
 
   sig { params(str: String, indent: Integer).returns(String) }

@@ -124,6 +124,18 @@ module Tapioca
           end
         end
 
+        sig { params(mod: Module, helper: Module).returns(T::Boolean) }
+        def self.includes_helper?(mod, helper)
+          superclass_ancestors = []
+
+          if Class === mod
+            superclass = superclass_of(mod)
+            superclass_ancestors = ancestors_of(superclass) if superclass
+          end
+
+          (ancestors_of(mod) - superclass_ancestors).any? { |ancestor| helper == ancestor }
+        end
+
         private
 
         sig { params(root: RBI::Tree).void }
@@ -149,18 +161,6 @@ module Tapioca
 
           mod.create_include(T.must(helper_module.name)) if include_helper
           mod.create_extend(T.must(helper_module.name)) if extend_helper
-        end
-
-        sig { params(mod: Module, helper: Module).returns(T::Boolean) }
-        def self.includes_helper?(mod, helper)
-          superclass_ancestors = []
-
-          if Class === mod
-            superclass = superclass_of(mod)
-            superclass_ancestors = ancestors_of(superclass) if superclass
-          end
-
-          (ancestors_of(mod) - superclass_ancestors).any? { |ancestor| helper == ancestor }
         end
       end
     end

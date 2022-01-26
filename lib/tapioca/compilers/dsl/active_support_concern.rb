@@ -83,22 +83,17 @@ module Tapioca
           end
         end
 
-        private
-
         sig { params(concern: Module).returns(T::Array[Module]) }
         def self.dependencies_of(concern)
           concern.instance_variable_get(:@_dependencies)
         end
 
-        sig { params(concern: Module).returns(T::Array[Module]) }
-        def dependencies_of(concern)
-          self.class.dependencies_of(concern)
-        end
+        private
 
         sig { params(concern: Module).returns(T::Array[Module]) }
         def linearized_dependencies_of(concern)
           # Grab all the dependencies of the concern
-          dependencies = dependencies_of(concern)
+          dependencies = self.class.dependencies_of(concern)
 
           # Flatten this concern's dependencies and all of their dependencies
           dependencies.flat_map do |dependency|

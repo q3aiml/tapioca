@@ -85,8 +85,6 @@ module Tapioca
           end
         end
 
-        private
-
         sig { params(constant: Class).returns(T::Array[Symbol]) }
         def self.scope_method_names_from_constant(constant)
           scope_methods = T.let([], T::Array[Symbol])
@@ -104,6 +102,8 @@ module Tapioca
 
           scope_methods
         end
+
+        private
 
         sig do
           params(
