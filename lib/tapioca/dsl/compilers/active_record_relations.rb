@@ -152,18 +152,34 @@ module Tapioca
 
         ConstantType = type_member(fixed: T.class_of(::ActiveRecord::Base))
 
+        sig { params(pipeline: Tapioca::Dsl::Pipeline, root: RBI::Tree, constant: ConstantType).void }
+        def initialize(pipeline, root, constant)
+          super
+          @constant_name = T.let(T.must(qualified_name_of(constant)), String)
+          @model = T.let(
+            root.create_path(constant),
+            RBI::Scope
+          )
+          @relation_methods_module = T.let(
+            model.create_module(RelationMethodsModuleName),
+            RBI::Scope
+          )
+          @association_relation_methods_module = T.let(
+            model.create_module(AssociationRelationMethodsModuleName),
+            RBI::Scope
+          )
+          @common_relation_methods_module = T.let(
+            model.create_module(CommonRelationMethodsModuleName),
+            RBI::Scope
+          )
+        end
+
         sig { override.void }
         def decorate
-          root.create_path(constant) do |model|
-            relation_methods_module = model.create_module(RelationMethodsModuleName)
-            association_relation_methods_module = model.create_module(AssociationRelationMethodsModuleName)
-            common_relation_methods_module = model.create_module(CommonRelationMethodsModuleName)
-
-            create_classes_and_includes(model)
-            create_common_methods(common_relation_methods_module)
-            create_relation_methods(relation_methods_module, association_relation_methods_module)
-            create_association_relation_methods(association_relation_methods_module)
-          end
+          create_classes_and_includes
+          create_common_methods
+          create_relation_methods
+          create_association_relation_methods
         end
 
         sig { override.returns(T::Enumerable[Module]) }
@@ -213,19 +229,22 @@ module Tapioca
 
         private
 
+        sig { returns(RBI::Scope) }
+        attr_reader :model,
+          :relation_methods_module,
+          :association_relation_methods_module,
+          :common_relation_methods_module
+
         sig { returns(String) }
-        def constant_name
-          @constant_name ||= T.let(T.must(qualified_name_of(constant)), T.nilable(String))
-          T.must(@constant_name)
-        end
+        attr_reader :constant_name
 
         sig { params(method_name: Symbol).returns(T::Boolean) }
         def bang_method?(method_name)
           method_name.to_s.end_with?("!")
         end
 
-        sig { params(model: RBI::Scope).void }
-        def create_classes_and_includes(model)
+        sig { void }
+        def create_classes_and_includes
           model.create_extend(CommonRelationMethodsModuleName)
           # The model always extends the generated relation module
           model.create_extend(RelationMethodsModuleName)
@@ -415,13 +434,11 @@ module Tapioca
           end
         end
 
-        sig { params(relation_methods_module: RBI::Scope, association_relation_methods_module: RBI::Scope).void }
-        def create_relation_methods(relation_methods_module, association_relation_methods_module)
-          create_relation_method("all", relation_methods_module, association_relation_methods_module)
+        sig { void }
+        def create_relation_methods
+          create_relation_method("all")
           create_relation_method(
             "where",
-            relation_methods_module,
-            association_relation_methods_module,
             parameters: [
               create_rest_param("args", type: "T.untyped"),
               create_block_param("blk", type: "T.untyped"),
@@ -433,8 +450,6 @@ module Tapioca
           QUERY_METHODS.each do |method_name|
             create_relation_method(
               method_name,
-              relation_methods_module,
-              association_relation_methods_module,
               parameters: [
                 create_rest_param("args", type: "T.untyped"),
                 create_block_param("blk", type: "T.untyped"),
@@ -443,8 +458,8 @@ module Tapioca
           end
         end
 
-        sig { params(association_relation_methods_module: RBI::Scope).void }
-        def create_association_relation_methods(association_relation_methods_module)
+        sig { void }
+        def create_association_relation_methods
           returning_type = "T.nilable(T.any(T::Array[Symbol], FalseClass))"
           unique_by_type = "T.nilable(T.any(T::Array[Symbol], Symbol))"
 
@@ -488,11 +503,10 @@ module Tapioca
           end
         end
 
-        sig { params(common_relation_methods_module: RBI::Scope).void }
-        def create_common_methods(common_relation_methods_module)
+        sig { void }
+        def create_common_methods
           create_common_method(
             "destroy_all",
-            common_relation_methods_module,
             return_type: "T::Array[#{constant_name}]"
           )
 
@@ -501,7 +515,6 @@ module Tapioca
             when :exists?
               create_common_method(
                 "exists?",
-                common_relation_methods_module,
                 parameters: [
                   create_opt_param("conditions", type: "T.untyped", default: ":none"),
                 ],
@@ -510,7 +523,6 @@ module Tapioca
             when :include?, :member?
               create_common_method(
                 method_name,
-                common_relation_methods_module,
                 parameters: [
                   create_param("record", type: "T.untyped"),
                 ],
@@ -519,7 +531,6 @@ module Tapioca
             when :find
               create_common_method(
                 "find",
-                common_relation_methods_module,
                 parameters: [
                   create_rest_param("args", type: "T.untyped"),
                 ],
@@ -528,7 +539,6 @@ module Tapioca
             when :find_by
               create_common_method(
                 "find_by",
-                common_relation_methods_module,
                 parameters: [
                   create_rest_param("args", type: "T.untyped"),
                 ],
@@ -537,7 +547,6 @@ module Tapioca
             when :find_by!
               create_common_method(
                 "find_by!",
-                common_relation_methods_module,
                 parameters: [
                   create_rest_param("args", type: "T.untyped"),
                 ],
@@ -546,7 +555,6 @@ module Tapioca
             when :first, :last, :take
               create_common_method(
                 method_name,
-                common_relation_methods_module,
                 parameters: [
                   create_opt_param("limit", type: "T.untyped", default: "nil"),
                 ],
@@ -563,7 +571,6 @@ module Tapioca
 
               create_common_method(
                 method_name,
-                common_relation_methods_module,
                 return_type: return_type
               )
             end
@@ -574,7 +581,6 @@ module Tapioca
             when :average, :maximum, :minimum
               create_common_method(
                 method_name,
-                common_relation_methods_module,
                 parameters: [
                   create_param("column_name", type: "T.any(String, Symbol)"),
                 ],
@@ -583,7 +589,6 @@ module Tapioca
             when :calculate
               create_common_method(
                 "calculate",
-                common_relation_methods_module,
                 parameters: [
                   create_param("operation", type: "Symbol"),
                   create_param("column_name", type: "T.any(String, Symbol)"),
@@ -593,18 +598,16 @@ module Tapioca
             when :count
               create_common_method(
                 "count",
-                common_relation_methods_module,
                 parameters: [
                   create_opt_param("column_name", type: "T.untyped", default: "nil"),
                 ],
                 return_type: "T.untyped"
               )
             when :ids
-              create_common_method("ids", common_relation_methods_module, return_type: "Array")
+              create_common_method("ids", return_type: "Array")
             when :pick, :pluck
               create_common_method(
                 method_name,
-                common_relation_methods_module,
                 parameters: [
                   create_rest_param("column_names", type: "T.untyped"),
                 ],
@@ -613,7 +616,6 @@ module Tapioca
             when :sum
               create_common_method(
                 "sum",
-                common_relation_methods_module,
                 parameters: [
                   create_opt_param("column_name", type: "T.nilable(T.any(String, Symbol))", default: "nil"),
                   create_block_param("block", type: "T.nilable(T.proc.params(record: T.untyped).returns(T.untyped))"),
@@ -627,7 +629,6 @@ module Tapioca
             block_type = "T.nilable(T.proc.params(record: #{constant_name}).returns(T.untyped))"
             create_common_method(
               method_name,
-              common_relation_methods_module,
               parameters: [
                 create_block_param("block", type: block_type),
               ],
@@ -639,7 +640,6 @@ module Tapioca
             block_type = "T.nilable(T.proc.params(object: #{constant_name}).void)"
             create_common_method(
               method_name,
-              common_relation_methods_module,
               parameters: [
                 create_param("attributes", type: "T.untyped"),
                 create_block_param("block", type: block_type),
@@ -651,7 +651,6 @@ module Tapioca
           BUILDER_METHODS.each do |method_name|
             create_common_method(
               method_name,
-              common_relation_methods_module,
               parameters: [
                 create_opt_param("attributes", type: "T.untyped", default: "nil"),
                 create_block_param("block", type: "T.nilable(T.proc.params(object: #{constant_name}).void)"),
@@ -664,12 +663,11 @@ module Tapioca
         sig do
           params(
             name: T.any(Symbol, String),
-            common_relation_methods_module: RBI::Scope,
             parameters: T::Array[RBI::TypedParam],
             return_type: T.nilable(String)
           ).void
         end
-        def create_common_method(name, common_relation_methods_module, parameters: [], return_type: nil)
+        def create_common_method(name, parameters: [], return_type: nil)
           common_relation_methods_module.create_method(
             name.to_s,
             parameters: parameters,
@@ -680,8 +678,6 @@ module Tapioca
         sig do
           params(
             name: T.any(Symbol, String),
-            relation_methods_module: RBI::Scope,
-            association_relation_methods_module: RBI::Scope,
             parameters: T::Array[RBI::TypedParam],
             relation_return_type: String,
             association_return_type: String,
@@ -689,8 +685,6 @@ module Tapioca
         end
         def create_relation_method(
           name,
-          relation_methods_module,
-          association_relation_methods_module,
           parameters: [],
           relation_return_type: RelationClassName,
           association_return_type: AssociationRelationClassName
