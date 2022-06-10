@@ -26,19 +26,20 @@ module Tapioca
           end
 
           node = event.node
-          add_mixins(node, prepends.reverse, Runtime::Trackers::Mixin::Type::Prepend)
-          add_mixins(node, includes.reverse, Runtime::Trackers::Mixin::Type::Include)
-          add_mixins(node, extends.reverse, Runtime::Trackers::Mixin::Type::Extend)
+          add_mixins(node, prepends.reverse, Runtime::Trackers::Mixin::Type::Prepend, event.constant)
+          add_mixins(node, includes.reverse, Runtime::Trackers::Mixin::Type::Include, event.constant)
+          add_mixins(node, extends.reverse, Runtime::Trackers::Mixin::Type::Extend, event.constant)
         end
 
         sig do
           params(
             tree: RBI::Tree,
             mods: T::Array[Module],
-            mixin_type: Runtime::Trackers::Mixin::Type
+            mixin_type: Runtime::Trackers::Mixin::Type,
+            constant: Module,
           ).void
         end
-        def add_mixins(tree, mods, mixin_type)
+        def add_mixins(tree, mods, mixin_type, constant)
           mods
             .select do |mod|
               name = @pipeline.name_of(mod)
@@ -46,6 +47,10 @@ module Tapioca
               name && !filtered_mixin?(name)
             end
             .map do |mod|
+              location = T.must(Runtime::Trackers::Mixin.mixin_locations_for(constant)[mixin_type])[mod]
+              next unless location
+              next unless @pipeline.gem.contains_path?(location) 
+
               name = @pipeline.name_of(mod)
               @pipeline.push_symbol(name) if name
 

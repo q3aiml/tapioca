@@ -24,11 +24,12 @@ module Tapioca
           # The way we identify these "foreign constants" is by asking the mixin tracker which
           # constants have mixed in the current module that we are handling. We add all the
           # constants that we discover to the pipeline to be processed.
-          Runtime::Trackers::Mixin.constants_with_mixin(mixin).each do |constant, locations|
+          Runtime::Trackers::Mixin.constants_with_mixin(mixin).each do |constant, location|
             next if defined_by_application?(constant)
-            next unless mixed_in_by_gem?(locations)
+            next unless mixed_in_by_gem?(location)
 
             name = @pipeline.name_of(constant)
+            # byebug if name == "TypedParameters" || name == "ActionController::Parameters"
 
             # Calling Tapioca::Gem::Pipeline#name_of on a singleton class returns `nil`.
             # To handle this case, use string parsing to get the name of the singleton class's
@@ -47,11 +48,11 @@ module Tapioca
 
         sig do
           params(
-            locations: T::Array[String]
+            location: String,
           ).returns(T::Boolean)
         end
-        def mixed_in_by_gem?(locations)
-          locations.compact.any? { |location| @pipeline.gem.contains_path?(location) }
+        def mixed_in_by_gem?(location)
+          @pipeline.gem.contains_path?(location) 
         end
 
         sig do
